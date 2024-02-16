@@ -1,12 +1,12 @@
+use crate::errors::{Errors, Result};
+use crate::fio::IOManager;
+use log::error;
+use parking_lot::RwLock;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::prelude::FileExt;
 use std::path::PathBuf;
 use std::sync::Arc;
-use log::error;
-use parking_lot::RwLock;
-use crate::fio::IOManager;
-use crate::errors::{Errors, Result};
 
 pub struct FileIO {
     fd: Arc<RwLock<File>>, // 系统文件描述符
@@ -14,16 +14,18 @@ pub struct FileIO {
 
 impl FileIO {
     pub fn new(file_name: PathBuf) -> Result<Self> {
-        return match OpenOptions::new().create(true).read(true).write(true).append(true).open(file_name) {
-            Ok(file) => {
-                Ok(
-                    FileIO {
-                        fd: Arc::new(RwLock::new(file))
-                    }
-                )
-            }
+        return match OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(file_name)
+        {
+            Ok(file) => Ok(FileIO {
+                fd: Arc::new(RwLock::new(file)),
+            }),
             Err(e) => {
-                error!("file to open data file:{}",e);
+                error!("file to open data file:{}", e);
                 Err(Errors::FailedToOpenDataFile)
             }
         };
@@ -45,9 +47,9 @@ impl IOManager for FileIO {
     fn write(&self, buf: &[u8]) -> Result<usize> {
         let mut write_guard = self.fd.write();
         Ok(match write_guard.write(buf) {
-            Ok(n) => { n }
+            Ok(n) => n,
             Err(e) => {
-                error!("write to data file err:{}",e);
+                error!("write to data file err:{}", e);
                 return Err(Errors::FailedToWriteToDataFile);
             }
         })
@@ -56,13 +58,12 @@ impl IOManager for FileIO {
     fn sync(&self) -> Result<()> {
         let read_guard = self.fd.read();
         if let Err(e) = read_guard.sync_all() {
-            error!("failed to sync data file :{}",e);
+            error!("failed to sync data file :{}", e);
             return Err(Errors::FailedToSyncDataFile);
         }
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
