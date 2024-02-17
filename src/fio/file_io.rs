@@ -3,7 +3,7 @@ use crate::fio::IOManager;
 use log::error;
 use parking_lot::RwLock;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::os::unix::prelude::FileExt;
 use std::path::PathBuf;
 use std::sync::Arc;
