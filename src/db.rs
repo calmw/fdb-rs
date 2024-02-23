@@ -1,6 +1,6 @@
 use crate::data::data_file::{DataFile, DATA_FILE_NAME_SUFFIX};
 use crate::data::log_record::LogRecordType::{DELETE, NORMAL};
-use crate::data::log_record::{LogRecord, LogRecordPos};
+use crate::data::log_record::{LogRecord, LogRecordPos, LogRecordType};
 use crate::errors::Errors::{
     DataDirectoryCorrupted, DataFileEOF, DataFileNotFound, DataFileSizeTooSmall, DirPathIsEmpty,
     FailedToCreateDatabaseDir, FailedToReadDatabaseDir, IndexUpdateFailed, KeyIsEmpty, KeyNotFound,
@@ -96,6 +96,36 @@ impl Engine {
         let ok = self.index.put(key.to_vec(), log_record_pos);
         if !ok {
             return Err(IndexUpdateFailed);
+        }
+
+        Ok(())
+    }
+
+    pub fn delete(&self, key: Bytes) -> Result<()> {
+        // 判断key的有效性
+        if key.is_empty() {
+            return Err(Errors::KeyIsEmpty);
+        }
+        // 从内存索引当中取出对应的数据，不存在的话就直接返回
+        let pos = self.index.get(key.to_vec());
+        if pos.is_none() {
+            return Ok(());
+        }
+
+        // 构造logRecord，标识其是被删除的
+        let mut record = LogRecord {
+            key: key.to_vec(),
+            value: Default::default(),
+            rec_type: DELETE,
+        };
+
+        // 写入到数据文件当中
+        self.append_log_record(&mut record)?;
+
+        // 删除内存索引对应的key
+        let ok = self.index.delete(key.to_vec());
+        if !ok {
+            return Err(Errors::IndexUpdateFailed);
         }
 
         Ok(())
@@ -209,10 +239,13 @@ impl Engine {
                     file_id: *file_id,
                     offset,
                 };
-                match log_record.rec_type {
+                let ok = match log_record.rec_type {
                     NORMAL => self.index.put(log_record.key.to_vec(), log_record_pos),
                     DELETE => self.index.delete(log_record.key.to_vec()),
                 };
+                if !ok {
+                    return Err(IndexUpdateFailed);
+                }
                 // 递增offset
                 offset += size
             }
