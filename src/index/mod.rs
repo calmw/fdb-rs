@@ -17,6 +17,5 @@ pub fn new_indexer(index_type: IndexType) -> impl Indexer {
     match index_type {
         IndexType::Btree => btree::Btree::new(),
         IndexType::SkipList => todo!(),
-        // _ => panic!("unknown index type"),
     }
 }

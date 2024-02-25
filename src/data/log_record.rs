@@ -1,3 +1,6 @@
+use prost::length_delimiter_len;
+use std::sync::atomic::AtomicU32;
+
 // 数据日志类型
 #[derive(PartialEq)]
 pub enum LogRecordType {
@@ -24,11 +27,30 @@ pub struct LogRecordPos {
 // 从数据文件中读取的log record 信息，包含size
 pub struct ReadLogRecord {
     pub(crate) record: LogRecord,
-    pub(crate) size: u64,
+    pub(crate) size: usize,
 }
 
 impl LogRecord {
     pub fn encode(&mut self) -> Vec<u8> {
         todo!()
     }
+    pub fn get_crc(&mut self) -> u32 {
+        todo!()
+    }
+}
+
+impl LogRecordType {
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            1 => LogRecordType::NORMAL,
+            2 => LogRecordType::DELETE,
+            _ => panic!("unknown log record type"),
+        }
+    }
+}
+
+// Rust 代码把CRC部分放在数据最后部分，为了处理方便不放header里面,获取最大长度，非实际长度
+pub fn max_log_record_header_size() -> usize {
+    // 类型size + key size + value size
+    std::mem::size_of::<u8>() + length_delimiter_len(u32::MAX as usize) * 2
 }

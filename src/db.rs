@@ -2,8 +2,9 @@ use crate::data::data_file::{DataFile, DATA_FILE_NAME_SUFFIX};
 use crate::data::log_record::LogRecordType::{DELETE, NORMAL};
 use crate::data::log_record::{LogRecord, LogRecordPos, LogRecordType};
 use crate::errors::Errors::{
-    DataDirectoryCorrupted, DataFileEOF, DataFileNotFound, DataFileSizeTooSmall, DirPathIsEmpty,
+    DataDirectoryCorrupted, DataFileNotFound, DataFileSizeTooSmall, DirPathIsEmpty,
     FailedToCreateDatabaseDir, FailedToReadDatabaseDir, IndexUpdateFailed, KeyIsEmpty, KeyNotFound,
+    ReadDataFileEOF,
 };
 use crate::errors::{Errors, Result};
 use crate::index;
@@ -202,7 +203,7 @@ impl Engine {
         // 构造数据索引信息
         Ok(LogRecordPos {
             file_id: active_file.get_file_id(),
-            offset: write_off,
+            offset: write_off as u64,
         })
     }
 
@@ -228,7 +229,7 @@ impl Engine {
                 let (log_record, size) = match log_record_read {
                     Ok(result) => (result.record, result.size),
                     Err(e) => {
-                        if e == DataFileEOF {
+                        if e == ReadDataFileEOF {
                             break;
                         }
                         return Err(e);
@@ -247,7 +248,7 @@ impl Engine {
                     return Err(IndexUpdateFailed);
                 }
                 // 递增offset
-                offset += size
+                offset += size as u64
             }
 
             // 设置活跃文件的offset
